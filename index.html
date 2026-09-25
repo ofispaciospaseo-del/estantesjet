@@ -238,14 +238,16 @@
   <div class="toast" id="toastMsg">¡Aviso fijado y link copiado al portapapeles!</div>
 
   <script>
+    // CONFIGURACIÓN DE TU REPOSITORIO DE GITHUB
     const GITHUB_USER = 'ofispaciospaseo-del';
     const GITHUB_REPO = 'estantesjet';
 
+    // VALORES POR DEFECTO
     const DEFAULT_ADDRESS = 'Paseo del Este - Local 12';
     const DEFAULT_PHONE   = '+54 9 223 555-1234';
     const DEFAULT_EMAIL   = 'contacto@estantesjet.com';
 
-    // Leer parámetros de la URL
+    // Leer los parámetros reales que vienen en la URL
     const urlParams = new URLSearchParams(window.location.search);
     const selectedFotoParam = urlParams.get('foto');
     const paramAddress = urlParams.get('dir') || DEFAULT_ADDRESS;
@@ -275,6 +277,7 @@
     let baseImage = new Image();
     let globalLogo = new Image();
     let uploadedLogo = null;
+    let currentActivePhotoName = selectedFotoParam || ''; // Guarda el nombre de la foto actual
     let currentHash = generateHash();
 
     baseImage.crossOrigin = "anonymous";
@@ -298,11 +301,14 @@
             const match = allImages.find(img => img.name.toLowerCase() === selectedFotoParam.toLowerCase());
             if (match) {
               baseImage.src = match.url;
+              currentActivePhotoName = match.name;
             } else {
               baseImage.src = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${selectedFotoParam}`;
+              currentActivePhotoName = selectedFotoParam;
             }
           } else if (allImages.length > 0) {
             baseImage.src = allImages[0].url;
+            currentActivePhotoName = allImages[0].name;
           }
           return;
         }
@@ -330,6 +336,7 @@
           <p>${imgObj.name}</p>
         `;
         
+        // AL HACER CLIC: Guarda la foto seleccionada y recarga con su nombre en la URL
         card.addEventListener('click', () => {
           const targetUrl = new URL(window.location.origin + window.location.pathname);
           targetUrl.searchParams.set('foto', imgObj.name);
@@ -339,9 +346,7 @@
           window.location.href = targetUrl.toString();
         });
 
-        if (selectedFotoParam && imgObj.name.toLowerCase() === selectedFotoParam.toLowerCase()) {
-          card.classList.add('active');
-        } else if (!selectedFotoParam && allImages.indexOf(imgObj) === 0) {
+        if (currentActivePhotoName && imgObj.name.toLowerCase() === currentActivePhotoName.toLowerCase()) {
           card.classList.add('active');
         }
 
@@ -460,14 +465,13 @@
       requestAnimationFrame(renderLoop);
     });
 
-    // BOTÓN FIJAR AVISO: Mantiene la foto que esté seleccionada en la URL al recargar
+    // BOTÓN FIJAR AVISO: Fuerza a capturar la foto activa actual y arma el link blindado
     fixNoticeBtn.addEventListener('click', () => {
       const targetUrl = new URL(window.location.origin + window.location.pathname);
       
-      // Si hay una foto seleccionada en la URL actual, la conserva; si no, toma la primera activa
-      const currentFoto = selectedFotoParam || (allImages.length > 0 ? allImages[0].name : '');
-      if (currentFoto) {
-        targetUrl.searchParams.set('foto', currentFoto);
+      // Aseguramos que la foto activa actual viaje sí o sí en el enlace
+      if (currentActivePhotoName) {
+        targetUrl.searchParams.set('foto', currentActivePhotoName);
       }
       
       targetUrl.searchParams.set('dir', addressInput.value);
@@ -478,7 +482,7 @@
         toastMsg.style.display = 'block';
         setTimeout(() => {
           toastMsg.style.display = 'none';
-          window.location.href = targetUrl.toString();
+          window.location.href = targetUrl.toString(); // Recarga y fija definitivamente
         }, 1500);
       });
     });
