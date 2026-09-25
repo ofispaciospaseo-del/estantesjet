@@ -247,7 +247,7 @@
     const DEFAULT_PHONE   = '+54 9 223 555-1234';
     const DEFAULT_EMAIL   = 'contacto@estantesjet.com';
 
-    // Leer los parámetros reales que vienen en la URL
+    // Leer los parámetros reales que vienen en la URL al cargar o recargar (F5)
     const urlParams = new URLSearchParams(window.location.search);
     const selectedFotoParam = urlParams.get('foto');
     const paramAddress = urlParams.get('dir') || DEFAULT_ADDRESS;
@@ -277,7 +277,6 @@
     let baseImage = new Image();
     let globalLogo = new Image();
     let uploadedLogo = null;
-    let currentActivePhotoName = selectedFotoParam || ''; // Guarda el nombre de la foto actual
     let currentHash = generateHash();
 
     baseImage.crossOrigin = "anonymous";
@@ -301,14 +300,12 @@
             const match = allImages.find(img => img.name.toLowerCase() === selectedFotoParam.toLowerCase());
             if (match) {
               baseImage.src = match.url;
-              currentActivePhotoName = match.name;
             } else {
               baseImage.src = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${selectedFotoParam}`;
-              currentActivePhotoName = selectedFotoParam;
             }
           } else if (allImages.length > 0) {
+            // Si no hay foto en la URL, selecciona la primera por defecto
             baseImage.src = allImages[0].url;
-            currentActivePhotoName = allImages[0].name;
           }
           return;
         }
@@ -336,17 +333,19 @@
           <p>${imgObj.name}</p>
         `;
         
-        // AL HACER CLIC: Guarda la foto seleccionada y recarga con su nombre en la URL
+        // AL HACER CLIC: Recarga la página completa incluyendo la foto y los datos actuales en la URL
         card.addEventListener('click', () => {
           const targetUrl = new URL(window.location.origin + window.location.pathname);
           targetUrl.searchParams.set('foto', imgObj.name);
           targetUrl.searchParams.set('dir', addressInput.value);
           targetUrl.searchParams.set('tel', phoneInput.value);
           targetUrl.searchParams.set('mail', emailInput.value);
-          window.location.href = targetUrl.toString();
+          window.location.href = targetUrl.toString(); // Esto recarga la página y fija el estado para siempre
         });
 
-        if (currentActivePhotoName && imgObj.name.toLowerCase() === currentActivePhotoName.toLowerCase()) {
+        if (selectedFotoParam && imgObj.name.toLowerCase() === selectedFotoParam.toLowerCase()) {
+          card.classList.add('active');
+        } else if (!selectedFotoParam && allImages.indexOf(imgObj) === 0) {
           card.classList.add('active');
         }
 
@@ -465,15 +464,10 @@
       requestAnimationFrame(renderLoop);
     });
 
-    // BOTÓN FIJAR AVISO: Fuerza a capturar la foto activa actual y arma el link blindado
+    // BOTÓN FIJAR AVISO: Actualiza la URL con lo que escribiste, recarga y copia el link definitivo
     fixNoticeBtn.addEventListener('click', () => {
       const targetUrl = new URL(window.location.origin + window.location.pathname);
-      
-      // Aseguramos que la foto activa actual viaje sí o sí en el enlace
-      if (currentActivePhotoName) {
-        targetUrl.searchParams.set('foto', currentActivePhotoName);
-      }
-      
+      if (selectedFotoParam) targetUrl.searchParams.set('foto', selectedFotoParam);
       targetUrl.searchParams.set('dir', addressInput.value);
       targetUrl.searchParams.set('tel', phoneInput.value);
       targetUrl.searchParams.set('mail', emailInput.value);
@@ -482,7 +476,7 @@
         toastMsg.style.display = 'block';
         setTimeout(() => {
           toastMsg.style.display = 'none';
-          window.location.href = targetUrl.toString(); // Recarga y fija definitivamente
+          window.location.href = targetUrl.toString(); // Recarga para fijarlo definitivamente
         }, 1500);
       });
     });
