@@ -275,8 +275,6 @@
     let baseImage = new Image();
     let globalLogo = new Image();
     let uploadedLogo = null;
-    let activePhotoUrl = ''; // Almacena la URL directa de la foto que está activa
-    let activePhotoName = selectedFotoParam || ''; // Almacena el nombre de archivo de la foto
     let currentHash = generateHash();
 
     baseImage.crossOrigin = "anonymous";
@@ -294,30 +292,23 @@
             .map(f => ({ name: f.name, url: f.download_url }));
           
           statusMsg.textContent = `Total de imágenes cargadas: ${allImages.length}`;
-          
-          if (allImages.length > 0) {
-            let targetImg = allImages[0]; // Por defecto la primera
-            
-            if (selectedFotoParam) {
-              const found = allImages.find(img => img.name.toLowerCase() === selectedFotoParam.toLowerCase());
-              if (found) {
-                targetImg = found;
-              }
-            }
-            
-            activePhotoUrl = targetImg.url;
-            activePhotoName = targetImg.name;
-            baseImage.src = targetImg.url;
-          }
-
           renderGrid();
+
+          if (selectedFotoParam) {
+            const match = allImages.find(img => img.name.toLowerCase() === selectedFotoParam.toLowerCase());
+            if (match) {
+              baseImage.src = match.url;
+            } else {
+              baseImage.src = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${selectedFotoParam}`;
+            }
+          } else if (allImages.length > 0) {
+            baseImage.src = allImages[0].url;
+          }
           return;
         }
-      } catch (e) {
-        console.error(e);
-      }
+      } catch (e) {}
 
-      statusMsg.textContent = 'Error al cargar el repositorio.';
+      statusMsg.textContent = 'Cargando directorio...';
     }
 
     function renderGrid() {
@@ -339,7 +330,6 @@
           <p>${imgObj.name}</p>
         `;
         
-        // Al hacer clic recarga la página manteniendo la foto y los textos actuales
         card.addEventListener('click', () => {
           const targetUrl = new URL(window.location.origin + window.location.pathname);
           targetUrl.searchParams.set('foto', imgObj.name);
@@ -349,7 +339,9 @@
           window.location.href = targetUrl.toString();
         });
 
-        if (activePhotoName && imgObj.name.toLowerCase() === activePhotoName.toLowerCase()) {
+        if (selectedFotoParam && imgObj.name.toLowerCase() === selectedFotoParam.toLowerCase()) {
+          card.classList.add('active');
+        } else if (!selectedFotoParam && allImages.indexOf(imgObj) === 0) {
           card.classList.add('active');
         }
 
@@ -468,13 +460,16 @@
       requestAnimationFrame(renderLoop);
     });
 
-    // BOTÓN FIJAR AVISO: Guarda la foto actual y los datos de texto de forma permanente en la URL
+    // BOTÓN FIJAR AVISO: Mantiene la foto que esté seleccionada en la URL al recargar
     fixNoticeBtn.addEventListener('click', () => {
       const targetUrl = new URL(window.location.origin + window.location.pathname);
       
-      if (activePhotoName) {
-        targetUrl.searchParams.set('foto', activePhotoName);
+      // Si hay una foto seleccionada en la URL actual, la conserva; si no, toma la primera activa
+      const currentFoto = selectedFotoParam || (allImages.length > 0 ? allImages[0].name : '');
+      if (currentFoto) {
+        targetUrl.searchParams.set('foto', currentFoto);
       }
+      
       targetUrl.searchParams.set('dir', addressInput.value);
       targetUrl.searchParams.set('tel', phoneInput.value);
       targetUrl.searchParams.set('mail', emailInput.value);
@@ -483,7 +478,7 @@
         toastMsg.style.display = 'block';
         setTimeout(() => {
           toastMsg.style.display = 'none';
-          window.location.href = targetUrl.toString(); // Recarga para fijarlo definitivamente
+          window.location.href = targetUrl.toString();
         }, 1500);
       });
     });
