@@ -219,17 +219,21 @@
   </div>
 
   <script>
-    // ========================================================
-    // CONFIGURACIÓN GLOBAL (Edita estos valores según tu negocio)
-    // ========================================================
+    // CONFIGURACIÓN DE TU REPOSITORIO DE GITHUB
     const GITHUB_USER = 'ofispaciospaseo-del';
     const GITHUB_REPO = 'estantesjet';
 
-    // DATOS DE CONTACTO FIJOS (Se verán en todas las computadoras y celulares)
+    // VALORES POR DEFECTO SI LA URL NO CONTIENE PARÁMETROS
     const DEFAULT_ADDRESS = 'Paseo del Este - Local 12';
     const DEFAULT_PHONE   = '+54 9 223 555-1234';
     const DEFAULT_EMAIL   = 'contacto@estantesjet.com';
-    // ========================================================
+
+    // Leer parámetros guardados en la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const selectedFotoParam = urlParams.get('foto');
+    const paramAddress = urlParams.get('dir') || DEFAULT_ADDRESS;
+    const paramPhone   = urlParams.get('tel') || DEFAULT_PHONE;
+    const paramEmail   = urlParams.get('mail') || DEFAULT_EMAIL;
 
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
@@ -245,10 +249,9 @@
     const freezeBtn = document.getElementById('freezeBtn');
     const downloadBtn = document.getElementById('downloadBtn');
 
-    // Cargar los valores por defecto en los inputs al iniciar
-    addressInput.value = DEFAULT_ADDRESS;
-    phoneInput.value   = DEFAULT_PHONE;
-    emailInput.value   = DEFAULT_EMAIL;
+    addressInput.value = paramAddress;
+    phoneInput.value   = paramPhone;
+    emailInput.value   = paramEmail;
 
     let allImages = [];
     let baseImage = new Image();
@@ -261,7 +264,6 @@
     baseImage.crossOrigin = "anonymous";
     globalLogo.crossOrigin = "anonymous";
 
-    // Intenta cargar el archivo logo.png subido al repositorio de GitHub
     globalLogo.src = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/logo.png`;
 
     async function initGallery() {
@@ -276,11 +278,21 @@
           
           statusMsg.textContent = `Total de imágenes cargadas: ${allImages.length}`;
           renderGrid();
+
+          // Si vino una foto específica por URL (?foto=nombre.jpg), cargar esa primero
+          if (selectedFotoParam) {
+            const match = allImages.find(img => img.name.toLowerCase() === selectedFotoParam.toLowerCase());
+            if (match) {
+              baseImage.src = match.url;
+            } else {
+              baseImage.src = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${selectedFotoParam}`;
+            }
+          }
           return;
         }
       } catch (e) {}
 
-      statusMsg.textContent = 'No se pudieron cargar las imágenes de GitHub.';
+      statusMsg.textContent = 'Cargando directorio...';
     }
 
     function renderGrid() {
@@ -305,9 +317,16 @@
           document.querySelectorAll('.grid-card').forEach(c => c.classList.remove('active'));
           card.classList.add('active');
           baseImage.src = imgObj.url;
+
+          // Actualizar la URL del navegador sin recargar para que quede fija la selección
+          const newUrl = new URL(window.location);
+          newUrl.searchParams.set('foto', imgObj.name);
+          window.history.pushState({}, '', newUrl);
         });
 
-        if (idx === 0 && !baseImage.src) {
+        if (selectedFotoParam && imgObj.name.toLowerCase() === selectedFotoParam.toLowerCase()) {
+          card.classList.add('active');
+        } else if (!selectedFotoParam && idx === 0 && !baseImage.src) {
           card.classList.add('active');
           baseImage.src = imgObj.url;
         }
@@ -315,6 +334,19 @@
         imageGrid.appendChild(card);
       });
     }
+
+    // Actualiza la URL cuando cambias los textos
+    function updateUrlState() {
+      const newUrl = new URL(window.location);
+      if (addressInput.value) newUrl.searchParams.set('dir', addressInput.value);
+      if (phoneInput.value) newUrl.searchParams.set('tel', phoneInput.value);
+      if (emailInput.value) newUrl.searchParams.set('mail', emailInput.value);
+      window.history.pushState({}, '', newUrl);
+    }
+
+    addressInput.addEventListener('input', updateUrlState);
+    phoneInput.addEventListener('input', updateUrlState);
+    emailInput.addEventListener('input', updateUrlState);
 
     searchInput.addEventListener('input', renderGrid);
 
@@ -349,7 +381,6 @@
     function drawCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 1. Dibujar Imagen de Fondo
       if (baseImage.complete && baseImage.naturalWidth !== 0) {
         ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
       } else {
@@ -361,14 +392,12 @@
         ctx.fillText('Selecciona una imagen del catálogo', canvas.width / 2, canvas.height / 2);
       }
 
-      // 2. Degradado inferior
       const grad = ctx.createLinearGradient(0, canvas.height - 180, 0, canvas.height);
       grad.addColorStop(0, 'rgba(0,0,0,0)');
       grad.addColorStop(1, 'rgba(0,0,0,0.85)');
       ctx.fillStyle = grad;
       ctx.fillRect(0, canvas.height - 180, canvas.width, 180);
 
-      // 3. Reloj y Fecha en tiempo real
       const now = isFrozen && frozenDate ? frozenDate : new Date();
       const hrs = String(now.getHours()).padStart(2, '0');
       const mins = String(now.getMinutes()).padStart(2, '0');
@@ -393,7 +422,6 @@
       ctx.shadowBlur = 0;
       ctx.fillText(`HASH: ${currentHash}`, 30, canvas.height - 40);
 
-      // 4. Estampilla / Sello digital
       ctx.save();
       const stampX = canvas.width - 120;
       const stampY = canvas.height - 95;
@@ -415,7 +443,6 @@
       ctx.fillText("1001", stampX, stampY + 22);
       ctx.restore();
 
-      // 5. Marco superior de datos
       ctx.fillStyle = 'rgba(12, 15, 29, 0.85)';
       ctx.strokeStyle = '#00f3ff';
       ctx.lineWidth = 1;
@@ -438,13 +465,11 @@
       ctx.fillText(`✉️ Mail: ${emailInput.value}`, textX, 92);
     }
 
-    function renderLoop() {
+    initGallery();
+    requestAnimationFrame(function renderLoop() {
       drawCanvas();
       requestAnimationFrame(renderLoop);
-    }
-
-    initGallery();
-    requestAnimationFrame(renderLoop);
+    });
 
     downloadBtn.addEventListener('click', () => {
       const link = document.createElement('a');
