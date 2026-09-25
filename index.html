@@ -238,16 +238,14 @@
   <div class="toast" id="toastMsg">¡Aviso fijado y link copiado al portapapeles!</div>
 
   <script>
-    // CONFIGURACIÓN DE TU REPOSITORIO DE GITHUB
     const GITHUB_USER = 'ofispaciospaseo-del';
     const GITHUB_REPO = 'estantesjet';
 
-    // VALORES POR DEFECTO
     const DEFAULT_ADDRESS = 'Paseo del Este - Local 12';
     const DEFAULT_PHONE   = '+54 9 223 555-1234';
     const DEFAULT_EMAIL   = 'contacto@estantesjet.com';
 
-    // Leer los parámetros reales que vienen en la URL
+    // Leer parámetros de la URL
     const urlParams = new URLSearchParams(window.location.search);
     const selectedFotoParam = urlParams.get('foto');
     const paramAddress = urlParams.get('dir') || DEFAULT_ADDRESS;
@@ -277,7 +275,8 @@
     let baseImage = new Image();
     let globalLogo = new Image();
     let uploadedLogo = null;
-    let currentActivePhotoName = selectedFotoParam || ''; // Guarda el nombre de la foto actual
+    let activePhotoUrl = ''; // Almacena la URL directa de la foto que está activa
+    let activePhotoName = selectedFotoParam || ''; // Almacena el nombre de archivo de la foto
     let currentHash = generateHash();
 
     baseImage.crossOrigin = "anonymous";
@@ -295,26 +294,30 @@
             .map(f => ({ name: f.name, url: f.download_url }));
           
           statusMsg.textContent = `Total de imágenes cargadas: ${allImages.length}`;
-          renderGrid();
-
-          if (selectedFotoParam) {
-            const match = allImages.find(img => img.name.toLowerCase() === selectedFotoParam.toLowerCase());
-            if (match) {
-              baseImage.src = match.url;
-              currentActivePhotoName = match.name;
-            } else {
-              baseImage.src = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${selectedFotoParam}`;
-              currentActivePhotoName = selectedFotoParam;
+          
+          if (allImages.length > 0) {
+            let targetImg = allImages[0]; // Por defecto la primera
+            
+            if (selectedFotoParam) {
+              const found = allImages.find(img => img.name.toLowerCase() === selectedFotoParam.toLowerCase());
+              if (found) {
+                targetImg = found;
+              }
             }
-          } else if (allImages.length > 0) {
-            baseImage.src = allImages[0].url;
-            currentActivePhotoName = allImages[0].name;
+            
+            activePhotoUrl = targetImg.url;
+            activePhotoName = targetImg.name;
+            baseImage.src = targetImg.url;
           }
+
+          renderGrid();
           return;
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error(e);
+      }
 
-      statusMsg.textContent = 'Cargando directorio...';
+      statusMsg.textContent = 'Error al cargar el repositorio.';
     }
 
     function renderGrid() {
@@ -336,7 +339,7 @@
           <p>${imgObj.name}</p>
         `;
         
-        // AL HACER CLIC: Guarda la foto seleccionada y recarga con su nombre en la URL
+        // Al hacer clic recarga la página manteniendo la foto y los textos actuales
         card.addEventListener('click', () => {
           const targetUrl = new URL(window.location.origin + window.location.pathname);
           targetUrl.searchParams.set('foto', imgObj.name);
@@ -346,7 +349,7 @@
           window.location.href = targetUrl.toString();
         });
 
-        if (currentActivePhotoName && imgObj.name.toLowerCase() === currentActivePhotoName.toLowerCase()) {
+        if (activePhotoName && imgObj.name.toLowerCase() === activePhotoName.toLowerCase()) {
           card.classList.add('active');
         }
 
@@ -465,15 +468,13 @@
       requestAnimationFrame(renderLoop);
     });
 
-    // BOTÓN FIJAR AVISO: Fuerza a capturar la foto activa actual y arma el link blindado
+    // BOTÓN FIJAR AVISO: Guarda la foto actual y los datos de texto de forma permanente en la URL
     fixNoticeBtn.addEventListener('click', () => {
       const targetUrl = new URL(window.location.origin + window.location.pathname);
       
-      // Aseguramos que la foto activa actual viaje sí o sí en el enlace
-      if (currentActivePhotoName) {
-        targetUrl.searchParams.set('foto', currentActivePhotoName);
+      if (activePhotoName) {
+        targetUrl.searchParams.set('foto', activePhotoName);
       }
-      
       targetUrl.searchParams.set('dir', addressInput.value);
       targetUrl.searchParams.set('tel', phoneInput.value);
       targetUrl.searchParams.set('mail', emailInput.value);
@@ -482,7 +483,7 @@
         toastMsg.style.display = 'block';
         setTimeout(() => {
           toastMsg.style.display = 'none';
-          window.location.href = targetUrl.toString(); // Recarga y fija definitivamente
+          window.location.href = targetUrl.toString(); // Recarga para fijarlo definitivamente
         }, 1500);
       });
     });
